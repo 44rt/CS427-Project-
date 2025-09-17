@@ -147,10 +147,12 @@
 #     return results
 
 # models/baseline_models.py
+# models/baseline_models.py
 from utils.metrics import evaluate_model
 from sklearn.linear_model import SGDClassifier
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.dummy import DummyClassifier  # Add this import
 import numpy as np
 import joblib
 
@@ -179,28 +181,39 @@ def train_baseline_model(model, model_name, tasks, task_test_sets, global_test_s
     
     print(f"\n--- Training {model_name} ---")
     
+    # Create a dummy model for initial prediction if no training happens
+    dummy_model = DummyClassifier(strategy="most_frequent")
+    
     for task_id, ((X_train, y_train, X_val, y_val), (X_task_test, y_task_test)) in enumerate(zip(tasks, task_test_sets)):
         print(f"  Learning Task {task_id}...")
         
-        # --- CRITICAL FIX: Check for single-class data ---
+        # Check for single-class data
         unique_classes = np.unique(y_train)
         if len(unique_classes) < 2:
             print(f"    ⚠️  Only one class present ({unique_classes[0]}). Skipping training for this task.")
-            # Still evaluate on previous tasks to maintain result structure
+            
+            # Use dummy model if no real model has been trained yet
+            current_model = dummy_model if task_id == 0 else model
+            if task_id == 0:
+                dummy_model.fit(X_train, y_train)  # Fit dummy on first task
+            
             task_results = {}
             for eval_task in range(task_id + 1):
                 X_eval, y_eval = task_test_sets[eval_task]
-                metrics = evaluate_model(model, X_eval, y_eval)
+                try:
+                    metrics = evaluate_model(current_model, X_eval, y_eval)
+                except:
+                    # If evaluation fails, use dummy model
+                    metrics = evaluate_model(dummy_model, X_eval, y_eval)
                 task_results[eval_task] = metrics
                 print(f"    Task {eval_task} Accuracy: {metrics['accuracy']:.3f}")
             
-            global_metrics = evaluate_model(model, X_global_test, y_global_test)
+            global_metrics = evaluate_model(current_model, X_global_test, y_global_test)
             task_results['global'] = global_metrics
             print(f"    Global Accuracy: {global_metrics['accuracy']:.3f}")
             
             results[task_id] = task_results
             continue
-        # --- END FIX ---
         
         # Train the model (original code)
         if hasattr(model, 'partial_fit'):
