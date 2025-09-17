@@ -1,0 +1,8 @@
+# Ignore datasets
+data/
+
+# Ignore Python virtual environment
+venv/
+
+# macOS system files
+.DS_Store
