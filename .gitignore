@@ -4,6 +4,9 @@ data/
 # Ignore Python virtual environment
 venv/
 old_numpy_env/
+*.pyc
+__pycache__/
+
 
 # macOS system files
 .DS_Store
