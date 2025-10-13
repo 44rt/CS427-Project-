@@ -3,6 +3,8 @@ data/
 
 # Ignore Python virtual environment
 venv/
+old_numpy_env/
 
 # macOS system files
 .DS_Store
+
