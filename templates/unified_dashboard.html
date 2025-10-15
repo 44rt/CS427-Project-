@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>5G IDS Unified Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      .attack-alert {
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+      }
+      .graph-container {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border: 1px solid #475569;
+      }
+      .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+      }
+      .mlp-model {
+        border-left: 4px solid #10b981;
+      }
+      .baseline-model {
+        border-left: 4px solid #3b82f6;
+      }
+      .fade-in {
+        animation: fadeIn 0.5s ease-out;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-white">
+    <div class="container mx-auto px-4 py-8">
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-blue-400 mb-2">
+          🛡️ 5G Intrusion Detection System
+        </h1>
+        <p class="text-gray-300">
+          Unified Dashboard - Traditional vs Continual Learning Models
+        </p>
+        <p class="text-green-400 text-sm mt-2">
+          📊 Live Data from BTW_2.csv | Real-time Comparison
+        </p>
+        <button
+          onclick="refreshAllData()"
+          class="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+        >
+          🔄 Refresh Data
+        </button>
+      </div>
+
+      <!-- Performance Summary -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-gray-800 rounded-lg p-6 fade-in">
+          <h3 class="text-xl font-semibold text-green-400 mb-4">
+            🏆 Best Model
+          </h3>
+          <div id="best-model" class="text-2xl font-bold">Loading...</div>
+          <div class="text-gray-400" id="best-accuracy">Accuracy</div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg p-6 fade-in">
+          <h3 class="text-xl font-semibold text-blue-400 mb-4">🔍 Detection</h3>
+          <div class="text-2xl font-bold">3 Attack Types</div>
+          <div class="text-gray-400">UDP/HTTP Flood, Slow-rate DoS</div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg p-6 fade-in">
+          <h3 class="text-xl font-semibold text-purple-400 mb-4">
+            🧠 Learning
+          </h3>
+          <div id="improvement-value" class="text-2xl font-bold">+0.0%</div>
+          <div class="text-gray-400">Transfer Learning</div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg p-6 fade-in">
+          <h3 class="text-xl font-semibold text-yellow-400 mb-4">⚡ Status</h3>
+          <div id="system-status" class="text-2xl font-bold text-green-400">
+            Operational
+          </div>
+          <div class="text-gray-400" id="update-time">Updating...</div>
+        </div>
+      </div>
+
+      <!-- Unified Model Comparison -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- All Models Comparison -->
+        <div class="graph-container rounded-lg p-6 fade-in">
+          <h3 class="text-xl font-semibold text-yellow-400 mb-4">
+            📈 All Models Performance
+          </h3>
+          <div class="flex space-x-2 mb-4">
+            <span
+              class="px-3 py-1 bg-green-900 text-green-300 rounded-full text-sm"
+              >Continual Learning</span
+            >
+            <span
+              class="px-3 py-1 bg-blue-900 text-blue-300 rounded-full text-sm"
+              >Traditional Models</span
+            >
+          </div>
+          <div class="chart-container">
+            <canvas id="allModelsComparisonChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Forgetting Comparison -->
+        <div class="graph-container rounded-lg p-6 fade-in">
+          <h3 class="text-xl font-semibold text-red-400 mb-4">
+            📉 Catastrophic Forgetting
+          </h3>
+          <div class="chart-container">
+            <canvas id="forgettingChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Second Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Task Performance -->
+        <div class="graph-container rounded-lg p-6 fade-in">
+          <h3 class="text-xl font-semibold text-green-400 mb-4">
+            🎯 Task-wise Accuracy
+          </h3>
+          <div class="chart-container">
+            <canvas id="taskPerformanceChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Network Traffic -->
+        <div class="graph-container rounded-lg p-6 fade-in">
+          <h3 class="text-xl font-semibold text-blue-400 mb-4">
+            🌊 Network Traffic Patterns
+          </h3>
+          <div class="chart-container">
+            <canvas id="networkTrafficChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Model Comparison Table -->
+      <div class="bg-gray-800 rounded-lg p-6 mb-8 fade-in">
+        <h3 class="text-2xl font-semibold text-yellow-400 mb-4">
+          📊 All Models Performance Summary
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left text-gray-300">
+            <thead class="text-xs uppercase bg-gray-700">
+              <tr>
+                <th class="px-4 py-3">Model Type</th>
+                <th class="px-4 py-3">Model</th>
+                <th class="px-4 py-3">Accuracy</th>
+                <th class="px-4 py-3">F1-Score</th>
+                <th class="px-4 py-3">AUC</th>
+                <th class="px-4 py-3">Forgetting</th>
+                <th class="px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody id="model-table">
+              <tr>
+                <td colspan="7" class="text-center py-4 text-gray-500">
+                  Loading model data...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Real-time Detection -->
+      <div class="bg-gray-800 rounded-lg p-6 mb-8 fade-in">
+        <h3 class="text-2xl font-semibold text-red-400 mb-4">
+          🕵️‍♂️ Real-time Detection
+        </h3>
+        <div id="current-detection" class="space-y-3 max-h-96 overflow-y-auto">
+          <div class="text-center text-gray-500 py-8">
+            Loading detection data...
+          </div>
+        </div>
+      </div>
+
+      <!-- System Information -->
+      <div class="bg-gray-800 rounded-lg p-6 fade-in">
+        <h3 class="text-2xl font-semibold text-green-400 mb-4">
+          ⚙️ System Information
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div class="bg-gray-700 rounded p-4">
+            <div class="text-lg font-bold" id="total-models">0</div>
+            <div class="text-gray-400">Total Models</div>
+          </div>
+          <div class="bg-gray-700 rounded p-4">
+            <div class="text-lg font-bold" id="mlp-models">0</div>
+            <div class="text-gray-400">Continual Learning</div>
+          </div>
+          <div class="bg-gray-700 rounded p-4">
+            <div class="text-lg font-bold" id="baseline-models">0</div>
+            <div class="text-gray-400">Traditional Models</div>
+          </div>
+          <div class="bg-gray-700 rounded p-4">
+            <div class="text-lg font-bold" id="data-source">BTW_2.csv</div>
+            <div class="text-gray-400">Data Source</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="text-center mt-8 text-gray-500 text-sm">
+        <p>
+          🛡️ 5G IDS - Unified Dashboard | Traditional vs Continual Learning
+          Models
+        </p>
+        <p class="mt-2">
+          Data Source: BTW_2.csv | Updates every 3 seconds |
+          <span id="last-update-time">Never updated</span>
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // Chart instances
+      let allModelsComparisonChart,
+        forgettingChart,
+        taskPerformanceChart,
+        networkTrafficChart;
+
+      // Initialize all charts
+      async function initializeCharts() {
+        await initializeAllModelsComparison();
+        await initializeForgettingChart();
+        await initializeTaskPerformanceChart();
+        await initializeNetworkTrafficChart();
+      }
+
+      // All Models Comparison Chart
+      async function initializeAllModelsComparison() {
+        try {
+          const response = await fetch("/api/unified_comparison");
+          if (!response.ok) throw new Error("Failed to fetch data");
+          const data = await response.json();
+
+          if (data.error) {
+            console.error("API Error:", data.error);
+            return;
+          }
+
+          const ctx = document
+            .getElementById("allModelsComparisonChart")
+            .getContext("2d");
+          if (allModelsComparisonChart) allModelsComparisonChart.destroy();
+
+          allModelsComparisonChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: data.models,
+              datasets: [
+                {
+                  label: "Accuracy",
+                  data: data.accuracy,
+                  backgroundColor: data.model_types.map((type) =>
+                    type === "mlp" ? "#10B981" : "#3B82F6"
+                  ),
+                  borderColor: data.model_types.map((type) =>
+                    type === "mlp" ? "#059669" : "#2563EB"
+                  ),
+                  borderWidth: 2,
+                  borderRadius: 4,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  max: 1.0,
+                  ticks: {
+                    color: "#9CA3AF",
+                    callback: function (value) {
+                      return (value * 100).toFixed(1) + "%";
+                    },
+                  },
+                  grid: { color: "#374151" },
+                },
+                x: {
+                  ticks: {
+                    color: "#9CA3AF",
+                    maxTicksLimit: 8,
+                    callback: function (value, index, values) {
+                      const label = this.getLabelForValue(value);
+                      return label.length > 15
+                        ? label.substring(0, 15) + "..."
+                        : label;
+                    },
+                  },
+                  grid: { display: false },
+                },
+              },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      const model = data.models[context.dataIndex];
+                      const type = data.model_types[context.dataIndex];
+                      return [
+                        `Model: ${model}`,
+                        `Accuracy: ${(context.raw * 100).toFixed(1)}%`,
+                        `Type: ${
+                          type === "mlp" ? "Continual Learning" : "Traditional"
+                        }`,
+                      ];
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } catch (error) {
+          console.error("Error initializing all models comparison:", error);
+        }
+      }
+
+      // Forgetting Chart
+      async function initializeForgettingChart() {
+        try {
+          const response = await fetch("/api/unified_comparison");
+          if (!response.ok) throw new Error("Failed to fetch data");
+          const data = await response.json();
+
+          if (data.error) {
+            console.error("API Error:", data.error);
+            return;
+          }
+
+          const ctx = document
+            .getElementById("forgettingChart")
+            .getContext("2d");
+          if (forgettingChart) forgettingChart.destroy();
+
+          forgettingChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: data.models,
+              datasets: [
+                {
+                  label: "Forgetting Rate",
+                  data: data.forgetting_rates,
+                  backgroundColor: data.model_types.map((type) =>
+                    type === "mlp" ? "#EF4444" : "#F59E0B"
+                  ),
+                  borderColor: data.model_types.map((type) =>
+                    type === "mlp" ? "#DC2626" : "#D97706"
+                  ),
+                  borderWidth: 2,
+                  borderRadius: 4,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  max: 0.5,
+                  ticks: {
+                    color: "#9CA3AF",
+                    callback: function (value) {
+                      return (value * 100).toFixed(1) + "%";
+                    },
+                  },
+                  grid: { color: "#374151" },
+                },
+                x: {
+                  ticks: {
+                    color: "#9CA3AF",
+                    maxTicksLimit: 8,
+                    callback: function (value, index, values) {
+                      const label = this.getLabelForValue(value);
+                      return label.length > 15
+                        ? label.substring(0, 15) + "..."
+                        : label;
+                    },
+                  },
+                  grid: { display: false },
+                },
+              },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      const value = context.raw * 100;
+                      const model = data.models[context.dataIndex];
+                      let assessment = "";
+                      if (value === 0) assessment = "No forgetting";
+                      else if (value < 10) assessment = "Low forgetting";
+                      else if (value < 25) assessment = "Moderate forgetting";
+                      else assessment = "High forgetting";
+                      return [
+                        `Model: ${model}`,
+                        `Forgetting: ${value.toFixed(1)}%`,
+                        `Assessment: ${assessment}`,
+                      ];
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } catch (error) {
+          console.error("Error initializing forgetting chart:", error);
+        }
+      }
+
+      // Task Performance Chart
+      async function initializeTaskPerformanceChart() {
+        try {
+          const response = await fetch("/api/model_performance");
+          if (!response.ok) throw new Error("Failed to fetch data");
+          const data = await response.json();
+
+          if (data.error) {
+            console.error("API Error:", data.error);
+            return;
+          }
+
+          const taskData = data.task_performance;
+          const ctx = document
+            .getElementById("taskPerformanceChart")
+            .getContext("2d");
+          if (taskPerformanceChart) taskPerformanceChart.destroy();
+
+          taskPerformanceChart = new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: taskData.tasks,
+              datasets: [
+                {
+                  label: "MLP (Naive)",
+                  data: taskData.mlp_naive,
+                  borderColor: "#10B981",
+                  backgroundColor: "rgba(16, 185, 129, 0.1)",
+                  tension: 0.3,
+                  fill: true,
+                  borderWidth: 3,
+                },
+                {
+                  label: "MLP + LwF",
+                  data: taskData.mlp_lwf,
+                  borderColor: "#3B82F6",
+                  backgroundColor: "rgba(59, 130, 246, 0.1)",
+                  tension: 0.3,
+                  fill: true,
+                  borderWidth: 3,
+                },
+                {
+                  label: "MLP + EWC",
+                  data: taskData.mlp_ewc,
+                  borderColor: "#EF4444",
+                  backgroundColor: "rgba(239, 68, 68, 0.1)",
+                  tension: 0.3,
+                  fill: true,
+                  borderWidth: 3,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  max: 1.0,
+                  ticks: {
+                    color: "#9CA3AF",
+                    callback: function (value) {
+                      return (value * 100).toFixed(1) + "%";
+                    },
+                  },
+                  grid: { color: "#374151" },
+                },
+                x: {
+                  ticks: { color: "#9CA3AF" },
+                  grid: { color: "#374151" },
+                },
+              },
+              plugins: {
+                legend: {
+                  labels: { color: "#9CA3AF", font: { size: 11 } },
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      return (
+                        context.dataset.label +
+                        ": " +
+                        (context.raw * 100).toFixed(1) +
+                        "%"
+                      );
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } catch (error) {
+          console.error("Error initializing task performance chart:", error);
+        }
+      }
+
+      // Network Traffic Chart
+      async function initializeNetworkTrafficChart() {
+        try {
+          const response = await fetch("/api/network_traffic");
+          const patterns = await response.json();
+
+          const ctx = document
+            .getElementById("networkTrafficChart")
+            .getContext("2d");
+          if (networkTrafficChart) networkTrafficChart.destroy();
+
+          networkTrafficChart = new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: patterns["UDP Flood"].data.map((d) => d.time),
+              datasets: [
+                {
+                  label: "UDP Flood",
+                  data: patterns["UDP Flood"].data.map((d) => d.count),
+                  borderColor: "#FF6B6B",
+                  backgroundColor: "rgba(255, 107, 107, 0.1)",
+                  tension: 0.2,
+                  fill: true,
+                  borderWidth: 2,
+                },
+                {
+                  label: "HTTP Flood",
+                  data: patterns["HTTP Flood"].data.map((d) => d.count),
+                  borderColor: "#4ECDC4",
+                  backgroundColor: "rgba(78, 205, 196, 0.1)",
+                  tension: 0.2,
+                  fill: true,
+                  borderWidth: 2,
+                },
+                {
+                  label: "Slow-rate DoS",
+                  data: patterns["Slow-rate DoS"].data.map((d) => d.count),
+                  borderColor: "#45B7D1",
+                  backgroundColor: "rgba(69, 183, 209, 0.1)",
+                  tension: 0.2,
+                  fill: true,
+                  borderWidth: 2,
+                },
+                {
+                  label: "Normal Traffic",
+                  data: patterns["Normal"].data.map((d) => d.count),
+                  borderColor: "#96CEB4",
+                  backgroundColor: "rgba(150, 206, 180, 0.1)",
+                  tension: 0.2,
+                  fill: true,
+                  borderWidth: 2,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: { color: "#9CA3AF" },
+                  grid: { color: "#374151" },
+                },
+                x: {
+                  ticks: { color: "#9CA3AF", maxTicksLimit: 12 },
+                  grid: { color: "#374151" },
+                },
+              },
+              plugins: {
+                legend: {
+                  labels: { color: "#9CA3AF", font: { size: 11 } },
+                },
+              },
+            },
+          });
+        } catch (error) {
+          console.error("Error initializing network traffic chart:", error);
+        }
+      }
+
+      // Update model table
+      async function updateModelTable() {
+        try {
+          const response = await fetch("/api/combined_summary");
+          const models = await response.json();
+
+          const table = document.getElementById("model-table");
+          if (models.length > 0) {
+            table.innerHTML = models
+              .map(
+                (model) => `
+                        <tr class="border-b border-gray-700 hover:bg-gray-750 ${
+                          model.Model.includes("MLP")
+                            ? "mlp-model"
+                            : "baseline-model"
+                        }">
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 rounded text-xs font-semibold ${
+                                  model.Model.includes("MLP")
+                                    ? "bg-green-900 text-green-300"
+                                    : "bg-blue-900 text-blue-300"
+                                }">
+                                    ${
+                                      model.Model.includes("MLP")
+                                        ? "Continual"
+                                        : "Traditional"
+                                    }
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 font-medium">${
+                              model.Model
+                            }</td>
+                            <td class="px-4 py-3 ${
+                              model.Model.includes("LwF")
+                                ? "text-green-400 font-bold"
+                                : ""
+                            }">
+                                ${model["Final Accuracy"]}
+                            </td>
+                            <td class="px-4 py-3">${
+                              model["Final F1-Score"]
+                            }</td>
+                            <td class="px-4 py-3">${model["Final AUC"]}</td>
+                            <td class="px-4 py-3 ${
+                              parseFloat(model["Avg. Improvement"] || "0") > 0
+                                ? "text-green-400"
+                                : "text-red-400"
+                            }">
+                                ${model["Avg. Improvement"] || "0%"}
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="px-3 py-1 rounded-full text-xs font-semibold ${
+                                  model.Status === "EXCELLENT"
+                                    ? "bg-green-900 text-green-300"
+                                    : model.Status === "GOOD"
+                                    ? "bg-blue-900 text-blue-300"
+                                    : model.Status === "FAIR"
+                                    ? "bg-yellow-900 text-yellow-300"
+                                    : "bg-red-900 text-red-300"
+                                }">
+                                    ${model.Status || "UNKNOWN"}
+                                </span>
+                            </td>
+                        </tr>
+                    `
+              )
+              .join("");
+          } else {
+            table.innerHTML =
+              '<tr><td colspan="7" class="text-center py-4 text-red-400">No model data available</td></tr>';
+          }
+        } catch (error) {
+          console.error("Error updating model table:", error);
+        }
+      }
+
+      // Update real-time detection
+      async function updateDetection() {
+        try {
+          const response = await fetch("/api/detection");
+          const data = await response.json();
+
+          const currentDiv = document.getElementById("current-detection");
+          if (data.current && data.current.length > 0) {
+            currentDiv.innerHTML = data.current
+              .map(
+                (item) => `
+                        <div class="flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
+                          item.is_attack
+                            ? "bg-red-900/80 attack-alert border-l-4 border-red-500"
+                            : "bg-green-900/80 border-l-4 border-green-500"
+                        }">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">${item.emoji}</span>
+                                <div>
+                                    <div class="font-semibold">${
+                                      item.traffic_type
+                                    }</div>
+                                    <div class="text-sm text-gray-300">Confidence: <span class="font-mono">${
+                                      item.confidence
+                                    }</span></div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-bold text-sm ${
+                                  item.is_attack
+                                    ? "text-red-300"
+                                    : "text-green-300"
+                                }">
+                                    ${
+                                      item.is_attack ? "🚨 ATTACK" : "✅ NORMAL"
+                                    }
+                                </div>
+                                <div class="text-xs text-gray-400 font-mono">${
+                                  item.timestamp
+                                }</div>
+                            </div>
+                        </div>
+                    `
+              )
+              .join("");
+          }
+        } catch (error) {
+          console.error("Error updating detection:", error);
+        }
+      }
+
+      // Update system stats
+      async function updateStats() {
+        try {
+          const response = await fetch("/api/stats");
+          const stats = await response.json();
+
+          if (stats.error) {
+            document.getElementById("best-model").textContent =
+              "Data Loading...";
+            return;
+          }
+
+          document.getElementById("best-model").textContent = stats.best_model;
+          document.getElementById("best-accuracy").textContent =
+            (stats.best_accuracy * 100).toFixed(1) + "% Accuracy";
+          document.getElementById("improvement-value").textContent =
+            "+" + ((stats.best_accuracy - 0.7) * 100).toFixed(1) + "%";
+          document.getElementById("total-models").textContent =
+            stats.total_models;
+          document.getElementById("mlp-models").textContent = stats.mlp_models;
+          document.getElementById("baseline-models").textContent =
+            stats.baseline_models;
+          document.getElementById("system-status").textContent = stats.status;
+          document.getElementById("update-time").textContent =
+            stats.update_time;
+          document.getElementById("last-update-time").textContent =
+            "Last update: " + new Date().toLocaleTimeString();
+        } catch (error) {
+          console.error("Error updating stats:", error);
+        }
+      }
+
+      // Refresh all data
+      async function refreshAllData() {
+        console.log("Refreshing all data...");
+        await updateModelTable();
+        await updateDetection();
+        await updateStats();
+        await initializeCharts();
+      }
+
+      // Manual reload from server
+      async function reloadServerData() {
+        try {
+          const response = await fetch("/api/reload");
+          const result = await response.json();
+          if (result.status === "success") {
+            await refreshAllData();
+            alert("Data reloaded successfully!");
+          } else {
+            alert("Failed to reload data: " + result.message);
+          }
+        } catch (error) {
+          console.error("Error reloading server data:", error);
+          alert("Error reloading data");
+        }
+      }
+
+      // Initialize and set up periodic updates
+      document.addEventListener("DOMContentLoaded", function () {
+        // Initial load
+        refreshAllData();
+
+        // Set up periodic updates
+        setInterval(updateDetection, 3000);
+        setInterval(updateStats, 5000);
+        setInterval(refreshAllData, 15000);
+
+        // Add keyboard shortcut
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "r" && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            refreshAllData();
+          }
+        });
+      });
+
+      // Make functions global for HTML buttons
+      window.refreshAllData = refreshAllData;
+      window.reloadServerData = reloadServerData;
+    </script>
+  </body>
+</html>
